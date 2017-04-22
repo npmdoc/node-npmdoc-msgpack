@@ -1,0 +1,380 @@
+<div class="apidocDiv">
+<style>
+/*csslint
+*/
+.apidocDiv {
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.apidocDiv a[href] {
+    color: #33f;
+    font-weight: bold;
+    text-decoration: none;
+}
+.apidocDiv a[href]:hover {
+    text-decoration: underline;
+}
+.apidocCodeCommentSpan {
+    background: #bbf;
+    color: #000;
+    display: block;
+}
+.apidocCodeKeywordSpan {
+    color: #d00;
+    font-weight: bold;
+}
+.apidocCodePre {
+    background: #eef;
+    border: 1px solid;
+    color: #777;
+    padding: 5px;
+    white-space: pre-wrap;
+}
+.apidocFooterDiv {
+    margin-top: 20px;
+    text-align: center;
+}
+.apidocModuleLi {
+    margin-top: 10px;
+}
+.apidocSectionDiv {
+    border-top: 1px solid;
+    margin-top: 20px;
+}
+.apidocSignatureSpan {
+    color: #777;
+    font-weight: bold;
+}
+</style>
+<h1>api documentation for
+    <a
+
+        href="https://github.com/msgpack/msgpack-node"
+
+    >msgpack (v1.0.2)</a>
+</h1>
+<h4>A space-efficient object serialization library for node.js</h4>
+<div class="apidocSectionDiv"><a
+    href="#apidoc.tableOfContents"
+    id="apidoc.tableOfContents"
+><h1>table of contents</h1></a><ol>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.msgpack">module msgpack</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.msgpack.Stream">
+            function <span class="apidocSignatureSpan">msgpack.</span>Stream
+            <span class="apidocSignatureSpan">(s)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.msgpack.pack">
+            function <span class="apidocSignatureSpan">msgpack.</span>pack
+            <span class="apidocSignatureSpan">()</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.msgpack.unpack">
+            function <span class="apidocSignatureSpan">msgpack.</span>unpack
+            <span class="apidocSignatureSpan">()</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.msgpack.Stream">module msgpack.Stream</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.msgpack.Stream.Stream">
+            function <span class="apidocSignatureSpan">msgpack.</span>Stream
+            <span class="apidocSignatureSpan">(s)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.msgpack.Stream.super_">
+            function <span class="apidocSignatureSpan">msgpack.Stream.</span>super_
+            <span class="apidocSignatureSpan">()</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+</ol></div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.msgpack" id="apidoc.module.msgpack">module msgpack</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.msgpack.Stream" id="apidoc.element.msgpack.Stream">
+        function <span class="apidocSignatureSpan">msgpack.</span>Stream
+        <span class="apidocSignatureSpan">(s)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">Stream = function (s) {
+    var self = this;
+
+    events.EventEmitter.call(self);
+
+    // Buffer of incomplete stream data
+    self.buf = null;
+
+    // Send a message down the stream
+    //
+    // Allows the caller to pass additional arguments, which are passed
+    // faithfully down to the write() method of the underlying stream.
+    self.send = function(m) {
+        // Sigh, no arguments.slice() method
+        var args = [pack(m)];
+        for (i = 1; i &#x3c; arguments.length; i++) {
+            args.push(arguments[i]);
+        }
+
+        return s.write.apply(s, args);
+    };
+
+    // Listen for data from the underlying stream, consuming it and emitting
+    // &#x27;msg&#x27; events as we find whole messages.
+    s.addListener(&#x27;data&#x27;, function(d) {
+        // Make sure that self.buf reflects the entirety of the unread stream
+        // of bytes; it needs to be a single buffer
+        if (self.buf) {
+            var b = new buffer.Buffer(self.buf.length + d.length);
+            self.buf.copy(b, 0, 0, self.buf.length);
+            d.copy(b, self.buf.length, 0, d.length);
+
+            self.buf = b;
+        } else {
+            self.buf = d;
+        }
+
+        // Consume messages from the stream, one by one
+        while (self.buf &#x26;&#x26; self.buf.length &#x3e; 0) {
+            var msg = unpack(self.buf);
+            if (!msg) {
+                break;
+            }
+
+            self.emit(&#x27;msg&#x27;, msg);
+            if (unpack.bytes_remaining &#x3e; 0) {
+                self.buf = self.buf.slice(
+                    self.buf.length - unpack.bytes_remaining,
+                    self.buf.length
+                );
+            } else {
+                self.buf = null;
+            }
+        }
+    });
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+instance. This object emits `msg` events when an object has been received.
+
+```javascript
+    var msgpack = require(&#x27;msgpack&#x27;);
+
+    // ... get a net.Stream instance, s, from somewhere
+
+    var ms = new msgpack.<span class="apidocCodeKeywordSpan">Stream</span>(s);
+    ms.addListener(&#x27;msg&#x27;, function(m) {
+        sys.debug(&#x27;received message: &#x27; + sys.inspect(m));
+    });
+```
+
+### Type Mapping
+...</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.msgpack.pack" id="apidoc.element.msgpack.pack">
+        function <span class="apidocSignatureSpan">msgpack.</span>pack
+        <span class="apidocSignatureSpan">()</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function pack() {
+    var args = arguments, that, i;
+    for (i = 0; i &#x3c; arguments.length; i++) {
+        that = args[i];
+        if (that &#x26;&#x26; typeof that === &#x27;object&#x27; &#x26;&#x26;
+            typeof that.toJSON === &#x27;function&#x27;) {
+            args[i] = that.toJSON();
+        }
+    }
+    return bpack.apply(null, args);
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+
+### Performance
+
+`node-msgpack` is currently slower than the built-in `JSON.stringify()` and
+`JSON.parse()` methods.  In recent versions of node.js, the JSON functions
+have been heavily optimized.  node-msgpack is still more compact, and we are
+currently working performance improvements.  Testing shows that, over 500k
+iterations, `msgpack.<span class="apidocCodeKeywordSpan">pack</span>()` is about 5x slower than `JSON.stringify()`, and
+`msgpack.unpack()` is about 3.5x slower than `JSON.parse()`.
+
+Old performance numbers are below.
+
+The following tests were performed with 500,000 instances of
+the JavaScript object `{&#x27;abcdef&#x27; : 1, &#x27;qqq&#x27; : 13, &#x27;19&#x27; : [1, 2, 3, 4]}`:
+...</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.msgpack.unpack" id="apidoc.element.msgpack.unpack">
+        function <span class="apidocSignatureSpan">msgpack.</span>unpack
+        <span class="apidocSignatureSpan">()</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">unpack = function () { [native code] }</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+### Performance
+
+`node-msgpack` is currently slower than the built-in `JSON.stringify()` and
+`JSON.parse()` methods.  In recent versions of node.js, the JSON functions
+have been heavily optimized.  node-msgpack is still more compact, and we are
+currently working performance improvements.  Testing shows that, over 500k
+iterations, `msgpack.pack()` is about 5x slower than `JSON.stringify()`, and
+`msgpack.<span class="apidocCodeKeywordSpan">unpack</span>()` is about 3.5x slower than `JSON.parse()`.
+
+Old performance numbers are below.
+
+The following tests were performed with 500,000 instances of
+the JavaScript object `{&#x27;abcdef&#x27; : 1, &#x27;qqq&#x27; : 13, &#x27;19&#x27; : [1, 2, 3, 4]}`:
+
+* `JSON.stringify()` 7.17 seconds
+...</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.msgpack.Stream" id="apidoc.module.msgpack.Stream">module msgpack.Stream</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.msgpack.Stream.Stream" id="apidoc.element.msgpack.Stream.Stream">
+        function <span class="apidocSignatureSpan">msgpack.</span>Stream
+        <span class="apidocSignatureSpan">(s)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">Stream = function (s) {
+    var self = this;
+
+    events.EventEmitter.call(self);
+
+    // Buffer of incomplete stream data
+    self.buf = null;
+
+    // Send a message down the stream
+    //
+    // Allows the caller to pass additional arguments, which are passed
+    // faithfully down to the write() method of the underlying stream.
+    self.send = function(m) {
+        // Sigh, no arguments.slice() method
+        var args = [pack(m)];
+        for (i = 1; i &#x3c; arguments.length; i++) {
+            args.push(arguments[i]);
+        }
+
+        return s.write.apply(s, args);
+    };
+
+    // Listen for data from the underlying stream, consuming it and emitting
+    // &#x27;msg&#x27; events as we find whole messages.
+    s.addListener(&#x27;data&#x27;, function(d) {
+        // Make sure that self.buf reflects the entirety of the unread stream
+        // of bytes; it needs to be a single buffer
+        if (self.buf) {
+            var b = new buffer.Buffer(self.buf.length + d.length);
+            self.buf.copy(b, 0, 0, self.buf.length);
+            d.copy(b, self.buf.length, 0, d.length);
+
+            self.buf = b;
+        } else {
+            self.buf = d;
+        }
+
+        // Consume messages from the stream, one by one
+        while (self.buf &#x26;&#x26; self.buf.length &#x3e; 0) {
+            var msg = unpack(self.buf);
+            if (!msg) {
+                break;
+            }
+
+            self.emit(&#x27;msg&#x27;, msg);
+            if (unpack.bytes_remaining &#x3e; 0) {
+                self.buf = self.buf.slice(
+                    self.buf.length - unpack.bytes_remaining,
+                    self.buf.length
+                );
+            } else {
+                self.buf = null;
+            }
+        }
+    });
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+instance. This object emits `msg` events when an object has been received.
+
+```javascript
+    var msgpack = require(&#x27;msgpack&#x27;);
+
+    // ... get a net.Stream instance, s, from somewhere
+
+    var ms = new msgpack.<span class="apidocCodeKeywordSpan">Stream</span>(s);
+    ms.addListener(&#x27;msg&#x27;, function(m) {
+        sys.debug(&#x27;received message: &#x27; + sys.inspect(m));
+    });
+```
+
+### Type Mapping
+...</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.msgpack.Stream.super_" id="apidoc.element.msgpack.Stream.super_">
+        function <span class="apidocSignatureSpan">msgpack.Stream.</span>super_
+        <span class="apidocSignatureSpan">()</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function EventEmitter() {
+  EventEmitter.init.call(this);
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocFooterDiv">
+    [ this document was created with
+    <a href="https://github.com/kaizhu256/node-utility2" target="_blank">utility2</a>
+    ]
+</div>
+</div>
